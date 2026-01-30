@@ -31,7 +31,10 @@ class Scraper:
 
     async def __aenter__(self):
         self._playwright = await async_playwright().start()
-        self._browser = await self._playwright.chromium.launch(headless=True)
+        self._browser = await self._playwright.chromium.launch(
+            headless=True,
+            args=['--no-sandbox', '--disable-setuid-sandbox']
+        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -45,10 +48,15 @@ class Scraper:
         if not self._browser:
             raise RuntimeError("Scraper must be used as async context manager")
 
-        page = await self._browser.new_page()
+        # Use a real browser user agent
+        context = await self._browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+        page = await context.new_page()
         try:
-            await page.goto(url, wait_until="networkidle", timeout=30000)
-            await page.wait_for_timeout(1000)  # Wait for animations
+            # Use "load" instead of "networkidle" for faster loading
+            await page.goto(url, wait_until="load", timeout=45000)
+            await page.wait_for_timeout(2000)  # Wait for JS rendering
 
             # Get full HTML
             html = await page.content()
@@ -83,6 +91,7 @@ class Scraper:
             )
         finally:
             await page.close()
+            await context.close()
 
     async def _extract_styles(self, page: Page) -> list[str]:
         """Extract inline and linked stylesheets."""
