@@ -2,7 +2,9 @@
  * API client for LandingForge backend
  */
 
-const API_BASE = '/api'
+const API_BASE = typeof window !== 'undefined'
+  ? `http://${window.location.hostname}:8000/api`
+  : 'http://localhost:8000/api'
 
 export interface ColorPalette {
   primary: string
